@@ -1,0 +1,28 @@
+#!/bin/bash
+# Crontab configuration for DVWA and pfSense backups
+#
+# To install this crontab:
+# 1. Edit this file to match your installation path
+# 2. Run: sudo crontab -e
+# 3. Copy the cron entries below
+#
+# Or install directly:
+# sudo crontab crontab/backup-crontab.example
+#
+
+# Set PATH to ensure all required commands are available
+PATH=/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin
+
+# Set working directory
+BACKUP_DIR=/opt/monitoring-subject-backup
+
+# DVWA Backup - runs daily at 2:00 AM
+0 2 * * * cd $BACKUP_DIR && /usr/bin/python3 dvwa_backup.py >> /var/log/dvwa-backup.log 2>&1
+
+# pfSense Backup - runs daily at 3:00 AM  
+0 3 * * * cd $BACKUP_DIR && /usr/bin/python3 pfsense_backup.py >> /var/log/pfsense-backup.log 2>&1
+
+# Optional: Clean up old local backups (keep last 7 days)
+0 4 * * * find $BACKUP_DIR/pfsense_backups -name "*.xml" -mtime +7 -delete >> /var/log/backup-cleanup.log 2>&1
+0 4 * * * find $BACKUP_DIR/pfsense_backups -name "*.tar.gz" -mtime +7 -delete >> /var/log/backup-cleanup.log 2>&1
+0 4 * * * find $BACKUP_DIR/pfsense_backups -name "*.sql" -mtime +7 -delete >> /var/log/backup-cleanup.log 2>&1

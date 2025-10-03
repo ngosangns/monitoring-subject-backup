@@ -166,6 +166,126 @@ This will:
 - Make sure the MySQL user has permissions to dump and restore the database.
 - The restore process will overwrite existing DVWA files and database.
 
+## Automated Scheduling
+
+This project includes configuration files for automating daily backups using either **systemd timers** (modern Linux systems) or **cron** (traditional Unix systems).
+
+### Systemd Timers (Recommended for modern Linux)
+
+Systemd timers provide better logging, dependency management, and persistent scheduling. If the system is off during the scheduled time, the backup will run when the system starts.
+
+**Quick Setup:**
+
+```sh
+# Copy project to system location
+sudo mkdir -p /opt/monitoring-subject-backup
+sudo cp -r . /opt/monitoring-subject-backup/
+sudo chmod +x /opt/monitoring-subject-backup/*.py
+
+# Install systemd service and timer files
+sudo cp systemd/*.service /etc/systemd/system/
+sudo cp systemd/*.timer /etc/systemd/system/
+sudo chmod 644 /etc/systemd/system/dvwa-backup.*
+sudo chmod 644 /etc/systemd/system/pfsense-backup.*
+
+# Enable and start timers
+sudo systemctl daemon-reload
+sudo systemctl enable --now dvwa-backup.timer
+sudo systemctl enable --now pfsense-backup.timer
+
+# Check status
+sudo systemctl list-timers
+sudo systemctl status dvwa-backup.timer
+sudo systemctl status pfsense-backup.timer
+```
+
+**Default Schedule:**
+
+- DVWA backup: Daily at 2:00 AM
+- pfSense backup: Daily at 3:00 AM
+
+**Management Commands:**
+
+```sh
+# View logs
+sudo journalctl -u dvwa-backup.service -n 50
+sudo journalctl -u pfsense-backup.service -f
+
+# Manually trigger backup
+sudo systemctl start dvwa-backup.service
+sudo systemctl start pfsense-backup.service
+
+# Stop/disable timers
+sudo systemctl stop dvwa-backup.timer
+sudo systemctl disable dvwa-backup.timer
+```
+
+See [systemd/README.md](systemd/README.md) for detailed documentation, troubleshooting, and customization options.
+
+### Crontab (Traditional Unix/Linux)
+
+For systems without systemd or users who prefer traditional cron:
+
+**Quick Setup:**
+
+```sh
+# Copy project to system location (if not already done)
+sudo mkdir -p /opt/monitoring-subject-backup
+sudo cp -r . /opt/monitoring-subject-backup/
+
+# Edit root's crontab
+sudo crontab -e
+
+# Add these lines:
+PATH=/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin
+
+# DVWA Backup - runs daily at 2:00 AM
+0 2 * * * cd /opt/monitoring-subject-backup && /usr/bin/python3 dvwa_backup.py >> /var/log/dvwa-backup.log 2>&1
+
+# pfSense Backup - runs daily at 3:00 AM
+0 3 * * * cd /opt/monitoring-subject-backup && /usr/bin/python3 pfsense_backup.py >> /var/log/pfsense-backup.log 2>&1
+```
+
+**Management Commands:**
+
+```sh
+# View current crontab
+sudo crontab -l
+
+# View backup logs
+tail -f /var/log/dvwa-backup.log
+tail -f /var/log/pfsense-backup.log
+
+# View cron logs
+sudo grep CRON /var/log/syslog | tail -20
+```
+
+**Optional: Cleanup old backups (keep last 7 days):**
+
+```cron
+0 4 * * * find /opt/monitoring-subject-backup/pfsense_backups -name "*.xml" -mtime +7 -delete >> /var/log/backup-cleanup.log 2>&1
+0 4 * * * find /opt/monitoring-subject-backup/pfsense_backups -name "*.tar.gz" -mtime +7 -delete >> /var/log/backup-cleanup.log 2>&1
+0 4 * * * find /opt/monitoring-subject-backup/pfsense_backups -name "*.sql" -mtime +7 -delete >> /var/log/backup-cleanup.log 2>&1
+```
+
+See [crontab/README.md](crontab/README.md) for detailed documentation, scheduling examples, and troubleshooting.
+
+### Comparison: Systemd vs Cron
+
+**Use Systemd Timers if:**
+
+- Your system uses systemd (most modern Linux distributions)
+- You want better logging integration with `journalctl`
+- You need persistent timers (run missed jobs after system boot)
+- You want dependency management between services
+
+**Use Cron if:**
+
+- You prefer traditional Unix tools
+- Your system doesn't use systemd
+- You need simple, straightforward scheduling
+- You want to use on macOS or BSD systems
+
 ## Project Structure
 
 ```
@@ -173,12 +293,22 @@ This will:
 ├── pfsense_backup.py       # pfSense backup script
 ├── pfsense_restore.py      # pfSense restore script
 ├── dvwa_backup.py          # DVWA backup script
-├── dvwa_backup.sh          # Legacy DVWA backup bash script
 ├── dvwa_restore.py         # DVWA restore script
-├── dvwa_restore.sh         # Legacy DVWA restore bash script
+├── dvwa_add_user.py        # Add user to DVWA database
+├── dvwa_delete_user.py     # Delete user from DVWA database
+├── dvwa_show_users.py      # Show users in DVWA database
 ├── .env                    # Environment configuration (git ignored)
 ├── .env.example            # Example environment configuration
 ├── pfsense_backups/        # Local backup storage directory
+├── systemd/                # Systemd service and timer files
+│   ├── dvwa-backup.service
+│   ├── dvwa-backup.timer
+│   ├── pfsense-backup.service
+│   ├── pfsense-backup.timer
+│   └── README.md
+├── crontab/                # Crontab configuration files
+│   ├── backup-crontab.example
+│   └── README.md
 └── README.md               # This file
 ```
 

@@ -1,0 +1,19 @@
+[Unit]
+Description=DVWA Backup Service
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=root
+WorkingDirectory=/opt/monitoring-subject-backup
+ExecStart=/usr/bin/python3 /opt/monitoring-subject-backup/dvwa_backup.py
+StandardOutput=journal
+StandardError=journal
+
+# Restart policy
+Restart=on-failure
+RestartSec=5m
+
+[Install]
+WantedBy=multi-user.target

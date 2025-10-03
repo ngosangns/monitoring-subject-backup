@@ -1,0 +1,15 @@
+[Unit]
+Description=pfSense Backup Timer
+Requires=pfsense-backup.service
+
+[Timer]
+# Run daily at 3:00 AM
+OnCalendar=daily
+OnCalendar=*-*-* 03:00:00
+Persistent=true
+
+# If the system was off when the timer should have run, run it when the system starts
+AccuracySec=1m
+
+[Install]
+WantedBy=timers.target
